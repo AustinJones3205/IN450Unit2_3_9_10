@@ -1,58 +1,165 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import psycopg
+
 from business_layer import BusinessLayer
+
+
+class LoginFrame(ttk.Frame):
+    def __init__(self, parent, on_login_success):
+        super().__init__(parent)
+        self.parent = parent
+        self.on_login_success = on_login_success
+
+        ttk.Label(self, text="Server:").grid(row=0, column=0, padx=10, pady=10, sticky="e")
+        ttk.Label(self, text="Database:").grid(row=1, column=0, padx=10, pady=10, sticky="e")
+        ttk.Label(self, text="User:").grid(row=2, column=0, padx=10, pady=10, sticky="e")
+        ttk.Label(self, text="Password:").grid(row=3, column=0, padx=10, pady=10, sticky="e")
+
+        self.server_entry = ttk.Entry(self, width=30)
+        self.database_entry = ttk.Entry(self, width=30)
+        self.user_entry = ttk.Entry(self, width=30)
+        self.password_entry = ttk.Entry(self, width=30, show="*")
+
+        self.server_entry.grid(row=0, column=1, padx=10, pady=10)
+        self.database_entry.grid(row=1, column=1, padx=10, pady=10)
+        self.user_entry.grid(row=2, column=1, padx=10, pady=10)
+        self.password_entry.grid(row=3, column=1, padx=10, pady=10)
+
+        self.server_entry.insert(0, "127.0.0.1")
+        self.database_entry.insert(0, "postgres")
+
+        ttk.Button(self, text="Login", command=self.try_login).grid(
+            row=4, column=0, columnspan=2, pady=15
+        )
+
+    def try_login(self):
+        server = self.server_entry.get().strip()
+        database = self.database_entry.get().strip()
+        user = self.user_entry.get().strip()
+        password = self.password_entry.get()
+
+        if not server or not database or not user or not password:
+            messagebox.showerror("Login Error", "All login fields are required.")
+            return
+
+        try:
+            business = BusinessLayer(server, database, user, password)
+            business.test_login()
+            self.on_login_success(business)
+
+        except psycopg.OperationalError:
+            messagebox.showerror(
+                "Login Error",
+                "Could not connect to the database. Check server, database, username, and password."
+            )
+        except Exception as exc:
+            messagebox.showerror("Login Error", f"Unexpected error:\n{exc}")
+
+
+class MainFrame(ttk.Frame):
+    def __init__(self, parent, business):
+        super().__init__(parent)
+        self.parent = parent
+        self.business = business
+
+        ttk.Label(
+            self,
+            text=f"Logged in as: {self.business.user}",
+            font=("Arial", 11, "bold")
+        ).pack(pady=10)
+
+        button_frame = ttk.Frame(self)
+        button_frame.pack(pady=10)
+
+        ttk.Button(
+            button_frame,
+            text="Count IN450a",
+            command=self.show_count_a
+        ).grid(row=0, column=0, padx=5, pady=5)
+
+        ttk.Button(
+            button_frame,
+            text="List Names from IN450b",
+            command=self.show_names_b
+        ).grid(row=0, column=1, padx=5, pady=5)
+
+        ttk.Button(
+            button_frame,
+            text="Count IN450c",
+            command=self.show_count_c
+        ).grid(row=0, column=2, padx=5, pady=5)
+
+        ttk.Button(
+            button_frame,
+            text="Logout",
+            command=self.parent.show_login
+        ).grid(row=0, column=3, padx=5, pady=5)
+
+        ttk.Label(self, text="Results:").pack(anchor="w", padx=10)
+
+        self.output_box = tk.Text(self, width=90, height=25)
+        self.output_box.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def clear_output(self):
+        self.output_box.delete("1.0", "end")
+
+    def show_count_a(self):
+        self.clear_output()
+        try:
+            count = self.business.get_count_in450a()
+            self.output_box.insert("end", f"IN450a row count: {count}")
+        except psycopg.errors.InsufficientPrivilege:
+            self.output_box.insert("end", "Access denied: this user cannot view IN450a.")
+        except Exception as exc:
+            self.output_box.insert("end", f"Error: {exc}")
+
+    def show_names_b(self):
+        self.clear_output()
+        try:
+            names = self.business.get_names_in450b()
+            self.output_box.insert("end", "IN450b first and last names:\n\n")
+            for name in names:
+                self.output_box.insert("end", f"{name}\n")
+        except psycopg.errors.InsufficientPrivilege:
+            self.output_box.insert("end", "Access denied: this user cannot view IN450b.")
+        except Exception as exc:
+            self.output_box.insert("end", f"Error: {exc}")
+
+    def show_count_c(self):
+        self.clear_output()
+        try:
+            count = self.business.get_count_in450c()
+            self.output_box.insert("end", f"IN450c row count: {count}")
+        except psycopg.errors.InsufficientPrivilege:
+            self.output_box.insert("end", "Access denied: this user cannot view IN450c.")
+        except Exception as exc:
+            self.output_box.insert("end", f"Error: {exc}")
+
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
+        self.title("IN450 Unit 3 - Secure Data Access Application")
+        self.geometry("900x650")
+        self.current_frame = None
+        self.show_login()
 
-        # Put your REAL postgres password here
-        self.business = BusinessLayer(
-            user="postgres",
-            password="Spring@2026",
-            host="127.0.0.1",
-            database="postgres"
-        )
+    def show_login(self):
+        if self.current_frame is not None:
+            self.current_frame.destroy()
 
-        self.title("IN450 Unit 2 - Data Access Application")
-        self.geometry("950x650")
+        self.current_frame = LoginFrame(self, self.show_main)
+        self.current_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        button_frame = ttk.Frame(self)
-        button_frame.pack(fill="x", padx=10, pady=10)
+    def show_main(self, business):
+        if self.current_frame is not None:
+            self.current_frame.destroy()
 
-        ttk.Button(button_frame, text="Count rows in in450a", command=self.show_count).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="List names from in450b", command=self.show_names).pack(side="left", padx=5)
+        self.current_frame = MainFrame(self, business)
+        self.current_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        ttk.Label(self, text="in450a data (preview):").pack(anchor="w", padx=10)
-        self.text_a = tk.Text(self, height=14)
-        self.text_a.pack(fill="both", expand=True, padx=10)
-
-        ttk.Label(self, text="in450b data (preview):").pack(anchor="w", padx=10, pady=(10, 0))
-        self.text_b = tk.Text(self, height=14)
-        self.text_b.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-
-        self.load_previews()
-
-    def load_previews(self):
-        self.text_a.delete("1.0", "end")
-        self.text_b.delete("1.0", "end")
-
-        a_rows = self.business.get_in450a_preview(limit=25)
-        b_rows = self.business.get_in450b_preview(limit=25)
-
-        for row in a_rows:
-            self.text_a.insert("end", f"{row}\n")
-
-        for row in b_rows:
-            self.text_b.insert("end", f"{row}\n")
-
-    def show_count(self):
-        count = self.business.get_count_in450a()
-        messagebox.showinfo("Row Count", f"in450a has {count} rows.")
-
-    def show_names(self):
-        names = self.business.get_names_in450b()
-        messagebox.showinfo("Names from in450b", "\n".join(names[:50]) + ("\n..." if len(names) > 50 else ""))
 
 if __name__ == "__main__":
-    App().mainloop()
+    app = App()
+    app.mainloop()

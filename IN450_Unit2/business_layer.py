@@ -1,21 +1,27 @@
 import psycopg
 
+
 class BusinessLayer:
-    def __init__(self, user, password, host, database):
+    def __init__(self, server, database, user, password):
+        self.server = server
+        self.database = database
         self.user = user
         self.password = password
-        self.host = host
-        self.database = database
 
     def _connect(self):
         connection = psycopg.connect(
+            host=self.server,
+            dbname=self.database,
             user=self.user,
             password=self.password,
-            host=self.host,
-            port="5432",
-            dbname=self.database
+            port="5432"
         )
         return connection
+
+    def test_login(self):
+        connection = self._connect()
+        connection.close()
+        return True
 
     def get_count_in450a(self):
         connection = self._connect()
@@ -45,32 +51,14 @@ class BusinessLayer:
 
         return names
 
-    def get_in450a_preview(self, limit=25):
+    def get_count_in450c(self):
         connection = self._connect()
         cursor = connection.cursor()
 
-        cursor.execute(
-            "SELECT time, source, destination, protocol, length, info FROM in450a LIMIT %s;",
-            (limit,)
-        )
-        rows = cursor.fetchall()
+        cursor.execute("SELECT COUNT(*) FROM in450c;")
+        result = cursor.fetchone()
 
         cursor.close()
         connection.close()
 
-        return rows
-
-    def get_in450b_preview(self, limit=25):
-        connection = self._connect()
-        cursor = connection.cursor()
-
-        cursor.execute(
-            "SELECT first_name, last_name, email, source, destination FROM in450b LIMIT %s;",
-            (limit,)
-        )
-        rows = cursor.fetchall()
-
-        cursor.close()
-        connection.close()
-
-        return rows
+        return result[0]
