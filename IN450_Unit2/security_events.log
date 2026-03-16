@@ -1,0 +1,6 @@
+2026-03-15 20:20:03,881 - INFO - Successful login for user 'in450a'.
+2026-03-15 20:20:13,948 - INFO - User 'in450a' logged out.
+2026-03-15 20:20:22,169 - WARNING - Failed login attempt for user 'in450a'. Attempt 1 of 3.
+2026-03-15 20:24:00,380 - WARNING - Failed login attempt for user 'in450a'. Attempt 2 of 3.
+2026-03-15 20:24:07,439 - WARNING - Failed login attempt for user 'in450a'. Attempt 3 of 3.
+2026-03-15 20:24:07,439 - ERROR - Login locked after repeated failures for user 'in450a'.
